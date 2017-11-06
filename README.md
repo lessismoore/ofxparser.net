@@ -1,13 +1,13 @@
 # ofxparser.net
-Biblioteca desenvolvida em C# que traduz arquivos OFX e gera a instância de uma classe que representa o arquivo.
+OfxParser is a .NET library for working with Open Financial Exchange (OFX) data - both OFXv1 (SGML) and OFXv2 (pure XML) - which is the standard format for downloading financial information from banks and stockbrokers.
 
-Exemplo de código:
+Example of usage:
 
-Extract extratoBancario = OFXParser.Parser.GenerateExtract(caminhoDoArquivoOFX);
+Extract extrat = OFXParser.Parser.GenerateExtract(ofx);
 
-if (extratoBancario != null)
+if (extrat != null)
 {
-	foreach (var transacao in extratoBancario.Transactions)
+	foreach (var tran in extrat.Transactions)
 	{
 
 	}
