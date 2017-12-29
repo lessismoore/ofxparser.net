@@ -194,10 +194,11 @@ namespace OFXParser
             }
             catch (XmlException xe)
             {
-                throw new OFXParserException("Invalid OFX file!");
+                throw new OFXParserException("Invalid OFX file!", xe);
             }
             finally
             {
+                if(File.Exists(ofxSourceFile + ".xml")) File.Delete(ofxSourceFile + ".xml");
                 meuXml.Close();
             }
 

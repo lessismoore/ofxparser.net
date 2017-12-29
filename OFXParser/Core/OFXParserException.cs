@@ -8,5 +8,10 @@ namespace OFXParser.Core
         {
 
         }
+
+        public OFXParserException(String message, Exception innerException) : base(message, innerException)
+        {
+
+        }
     }
 }
