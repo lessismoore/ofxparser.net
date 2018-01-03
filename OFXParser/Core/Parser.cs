@@ -198,8 +198,8 @@ namespace OFXParser
             }
             finally
             {
-                if(File.Exists(ofxSourceFile + ".xml")) File.Delete(ofxSourceFile + ".xml");
                 meuXml.Close();
+                if (File.Exists(ofxSourceFile + ".xml")) File.Delete(ofxSourceFile + ".xml");
             }
 
             if ((settings.IsValidateHeader && temCabecalho == false) || 
