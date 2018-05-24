@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>$id$</id>
+    <id>BKE.OFXParser</id>
     <version>$version$</version>
-    <title>ofxparser.net</title>
+    <title>BKE.OFXParser</title>
     <authors>Leonardo Melo Santos, Vitaly, Songtham</authors>
     <owners>Leonardo Melo Santos</owners>
     <licenseUrl>https://github.com/vitenc/ofxparser.net</licenseUrl>

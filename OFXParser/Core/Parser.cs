@@ -41,31 +41,34 @@ namespace OFXParser
                 throw new FileNotFoundException("OFX source file not found: " + ofxSourceFile);
             }
 
-            StreamReader sr = File.OpenText(ofxSourceFile);
-            while ((linha = sr.ReadLine()) != null)
+            using (StreamReader sr = File.OpenText(ofxSourceFile))
             {
-                linha = linha.Trim();
+                while ((linha = sr.ReadLine()) != null)
+                {
+                    linha = linha.Trim();
 
-                if (linha.StartsWith("</") && linha.EndsWith(">"))
-                {
-                    AddTabs(resultado, nivel, true);
-                    nivel--;
-                    resultado.Append(linha);
+                    if (linha.StartsWith("</") && linha.EndsWith(">"))
+                    {
+                        AddTabs(resultado, nivel, true);
+                        nivel--;
+                        resultado.Append(linha);
+                    }
+                    else if (linha.StartsWith("<") && linha.EndsWith(">"))
+                    {
+                        nivel++;
+                        AddTabs(resultado, nivel, true);
+                        resultado.Append(linha);
+                    }
+                    else if (linha.StartsWith("<") && !linha.EndsWith(">"))
+                    {
+                        AddTabs(resultado, nivel + 1, true);
+                        resultado.Append(linha);
+                        resultado.Append(ReturnFinalTag(linha));
+                    }
                 }
-                else if (linha.StartsWith("<") && linha.EndsWith(">"))
-                {
-                    nivel++;
-                    AddTabs(resultado, nivel, true);
-                    resultado.Append(linha);
-                }
-                else if (linha.StartsWith("<") && !linha.EndsWith(">"))
-                {
-                    AddTabs(resultado, nivel + 1, true);
-                    resultado.Append(linha);
-                    resultado.Append(ReturnFinalTag(linha));
-                }
+
+                sr.Close();
             }
-            sr.Close();
 
             return resultado;
         }
@@ -86,7 +89,7 @@ namespace OFXParser
 
             Boolean temCabecalho = false;
             Boolean temDadosConta = false;
-            
+
             // Translating to XML file
             ExportToXml(ofxSourceFile, ofxSourceFile + ".xml");
 
@@ -100,112 +103,117 @@ namespace OFXParser
             Extract extrato = new Extract(cabecalho, conta, "");
 
             // Lendo o XML efetivamente
-            XmlTextReader meuXml = new XmlTextReader(ofxSourceFile + ".xml");
-            try
+            using (XmlTextReader meuXml = new XmlTextReader(ofxSourceFile + ".xml"))
             {
-                while (meuXml.Read())
+                try
                 {
-                    if (meuXml.NodeType == XmlNodeType.EndElement)
+                    while (meuXml.Read())
                     {
-                        switch (meuXml.Name)
+                        if (meuXml.NodeType == XmlNodeType.EndElement)
                         {
-                            case "STMTTRN":
-                                if (transacaoAtual != null)
-                                {
-                                    extrato.AddTransaction(transacaoAtual);
-                                    transacaoAtual = null;
-                                }
-                                break;
-                        }
-                    }
-                    if (meuXml.NodeType == XmlNodeType.Element)
-                    {
-                        elementoSendoLido = meuXml.Name;
+                            switch (meuXml.Name)
+                            {
+                                case "STMTTRN":
+                                    if (transacaoAtual != null)
+                                    {
+                                        extrato.AddTransaction(transacaoAtual);
+                                        transacaoAtual = null;
+                                    }
 
-                        switch (elementoSendoLido)
-                        {
-                            case "STMTTRN":
-                                transacaoAtual = new Transaction();
-                                break;
+                                    break;
+                            }
                         }
-                    }
-                    if (meuXml.NodeType == XmlNodeType.Text)
-                    {
-                        switch (elementoSendoLido)
+
+                        if (meuXml.NodeType == XmlNodeType.Element)
                         {
-                            case "DTSERVER":
-                                cabecalho.ServerDate = ConvertOfxDateToDateTime(meuXml.Value, extrato);
-                                temCabecalho = true;
-                                break;
-                            case "LANGUAGE":
-                                cabecalho.Language = meuXml.Value;
-                                temCabecalho = true;
-                                break;
-                            case "ORG":
-                                cabecalho.BankName = meuXml.Value;
-                                temCabecalho = true;
-                                break;
-                            case "DTSTART":
-                                extrato.InitialDate = ConvertOfxDateToDateTime(meuXml.Value, extrato);
-                                break;
-                            case "DTEND":
-                                extrato.FinalDate = ConvertOfxDateToDateTime(meuXml.Value, extrato);
-                                break;
-                            case "BANKID":
-                                conta.Bank = new Bank(GetBankId(meuXml.Value, extrato), "");
-                                temDadosConta = true;
-                                break;
-                            case "BRANCHID":
-                                conta.AgencyCode = meuXml.Value;
-                                temDadosConta = true;
-                                break;
-                            case "ACCTID":
-                                conta.AccountCode = meuXml.Value;
-                                temDadosConta = true;
-                                break;
-                            case "ACCTTYPE":
-                                conta.Type = meuXml.Value;
-                                temDadosConta = true;
-                                break;
-                            case "TRNTYPE":
-                                transacaoAtual.Type = meuXml.Value;
-                                break;
-                            case "DTPOSTED":
-                                transacaoAtual.Date = ConvertOfxDateToDateTime(meuXml.Value, extrato);
-                                break;
-                            case "TRNAMT":
-                                transacaoAtual.TransactionValue = GetTransactionValue(meuXml.Value, extrato);
-                                break;
-                            case "FITID":
-                                transacaoAtual.Id = meuXml.Value;
-                                break;
-                            case "CHECKNUM":
-                                transacaoAtual.Checksum = Convert.ToInt64(meuXml.Value);
-                                break;
-                            case "MEMO":
-                                transacaoAtual.Description = string.IsNullOrEmpty(meuXml.Value) ? "" : meuXml.Value.Trim().Replace("  ", " ");
-                                break;
-                            case "NAME":
-                                transacaoAtual.Name = meuXml.Value;
-                                break;
+                            elementoSendoLido = meuXml.Name;
+
+                            switch (elementoSendoLido)
+                            {
+                                case "STMTTRN":
+                                    transacaoAtual = new Transaction();
+                                    break;
+                            }
+                        }
+
+                        if (meuXml.NodeType == XmlNodeType.Text)
+                        {
+                            switch (elementoSendoLido)
+                            {
+                                case "DTSERVER":
+                                    cabecalho.ServerDate = ConvertOfxDateToDateTime(meuXml.Value, extrato);
+                                    temCabecalho = true;
+                                    break;
+                                case "LANGUAGE":
+                                    cabecalho.Language = meuXml.Value;
+                                    temCabecalho = true;
+                                    break;
+                                case "ORG":
+                                    cabecalho.BankName = meuXml.Value;
+                                    temCabecalho = true;
+                                    break;
+                                case "DTSTART":
+                                    extrato.InitialDate = ConvertOfxDateToDateTime(meuXml.Value, extrato);
+                                    break;
+                                case "DTEND":
+                                    extrato.FinalDate = ConvertOfxDateToDateTime(meuXml.Value, extrato);
+                                    break;
+                                case "BANKID":
+                                    conta.Bank = new Bank(GetBankId(meuXml.Value, extrato), "");
+                                    temDadosConta = true;
+                                    break;
+                                case "BRANCHID":
+                                    conta.AgencyCode = meuXml.Value;
+                                    temDadosConta = true;
+                                    break;
+                                case "ACCTID":
+                                    conta.AccountCode = meuXml.Value;
+                                    temDadosConta = true;
+                                    break;
+                                case "ACCTTYPE":
+                                    conta.Type = meuXml.Value;
+                                    temDadosConta = true;
+                                    break;
+                                case "TRNTYPE":
+                                    transacaoAtual.Type = meuXml.Value;
+                                    break;
+                                case "DTPOSTED":
+                                    transacaoAtual.Date = ConvertOfxDateToDateTime(meuXml.Value, extrato);
+                                    break;
+                                case "TRNAMT":
+                                    transacaoAtual.TransactionValue = GetTransactionValue(meuXml.Value, extrato);
+                                    break;
+                                case "FITID":
+                                    transacaoAtual.Id = meuXml.Value;
+                                    break;
+                                case "CHECKNUM":
+                                    transacaoAtual.Checksum = Convert.ToInt64(meuXml.Value);
+                                    break;
+                                case "MEMO":
+                                    transacaoAtual.Description = string.IsNullOrEmpty(meuXml.Value) ? "" : meuXml.Value.Trim().Replace("  ", " ");
+                                    break;
+                                case "NAME":
+                                    transacaoAtual.Name = meuXml.Value;
+                                    break;
+                            }
                         }
                     }
                 }
-            }
-            catch (XmlException xe)
-            {
-                throw new OFXParserException("Invalid OFX file!", xe);
-            }
-            finally
-            {
-                meuXml.Close();
-                if (File.Exists(ofxSourceFile + ".xml")) File.Delete(ofxSourceFile + ".xml");
+                catch (XmlException xe)
+                {
+                    throw new OFXParserException("Invalid OFX file " + ofxSourceFile + " : " + xe.Message, xe);
+                }
+                finally
+                {
+                    meuXml.Close();
+                    if (File.Exists(ofxSourceFile + ".xml")) File.Delete(ofxSourceFile + ".xml");
+                }
             }
 
-            if ((settings.IsValidateHeader && temCabecalho == false) || 
+            if ((settings.IsValidateHeader && temCabecalho == false) ||
                 (settings.IsValidateAccountData && temDadosConta == false))
             {
-                throw new OFXParserException("Invalid OFX file!");
+                throw new OFXParserException("Invalid OFX file " + ofxSourceFile);
             }
             return extrato;
         }
@@ -217,31 +225,26 @@ namespace OFXParser
         /// <param name="xmlNewFile">Path of the XML file, internally generated.</param>
         private static void ExportToXml(String ofxSourceFile, String xmlNewFile)
         {
-            if (System.IO.File.Exists(ofxSourceFile)) 
-            {
-                if (xmlNewFile.ToLower().EndsWith(".xml"))
-                {
-                    // Translating the OFX file to XML format
-                    StringBuilder ofxTranslated = TranslateToXml(ofxSourceFile);
-
-                    // Verifying if target file exists
-                    if (System.IO.File.Exists(xmlNewFile))
-                    {
-                        System.IO.File.Delete(xmlNewFile);
-                    }
-
-                    // Writing data into target file
-                    StreamWriter sw = File.CreateText(xmlNewFile);
-                    sw.WriteLine(@"<?xml version=""1.0""?>");
-                    sw.WriteLine(ofxTranslated.ToString());
-                    sw.Close();
-                }
-                else
-                {
-                    throw new ArgumentException("Name of new XML file is not valid: " + xmlNewFile);
-                }                
-            } else {
+            if (!System.IO.File.Exists(ofxSourceFile))
                 throw new FileNotFoundException("OFX source file not found: " + ofxSourceFile);
+
+            if (!xmlNewFile.ToLower().EndsWith(".xml"))
+                throw new ArgumentException("Name of new XML file is not valid: " + xmlNewFile);
+
+            // Translating the OFX file to XML format
+            StringBuilder ofxTranslated = TranslateToXml(ofxSourceFile);
+
+            // Verifying if target file exists
+            if (System.IO.File.Exists(xmlNewFile))
+                System.IO.File.Delete(xmlNewFile);
+
+
+            // Writing data into target file
+            using (StreamWriter sw = File.CreateText(xmlNewFile))
+            {
+                sw.WriteLine(@"<?xml version=""1.0""?>");
+                sw.WriteLine(ofxTranslated.ToString());
+                sw.Close();
             }
         }
 
@@ -254,15 +257,15 @@ namespace OFXParser
         {
             String returnFinal = "";
 
-            if ((content.IndexOf("<") != -1) && (content.IndexOf(">") != -1))
+            if ((content.IndexOf("<") == -1) || (content.IndexOf(">") == -1))
+                return returnFinal;
+
+            int position1 = content.IndexOf("<");
+            int position2 = content.IndexOf(">");
+            if ((position2 - position1) > 2)
             {
-                int position1 = content.IndexOf("<");
-                int position2 = content.IndexOf(">");
-                if ((position2 - position1) > 2)
-                {
-                    returnFinal = content.Substring(position1, (position2 - position1) + 1);
-                    returnFinal = returnFinal.Replace("<", "</");
-                }
+                returnFinal = content.Substring(position1, (position2 - position1) + 1);
+                returnFinal = returnFinal.Replace("<", "</");
             }
 
             return returnFinal;
@@ -277,13 +280,10 @@ namespace OFXParser
         private static void AddTabs(StringBuilder stringObject, int lengthTabs, bool newLine)
         {
             if (newLine)
-            {
                 stringObject.AppendLine();
-            }
+
             for (int j = 1; j < lengthTabs; j++)
-            {
                 stringObject.Append("\t");
-            }
         }
 
         /// <summary>
@@ -296,44 +296,38 @@ namespace OFXParser
         {
             int result = 0;
 
-            if (partDateTime == PartDateTime.YEAR){
-                result = Int32.Parse(ofxDate.Substring(0,4));
+            if (partDateTime == PartDateTime.YEAR)
+                result = Int32.Parse(ofxDate.Substring(0, 4));
 
-            } else if (partDateTime == PartDateTime.MONTH) {
+            else if (partDateTime == PartDateTime.MONTH)
                 result = Int32.Parse(ofxDate.Substring(4, 2));
 
-            } if (partDateTime == PartDateTime.DAY) {
+            if (partDateTime == PartDateTime.DAY)
                 result = Int32.Parse(ofxDate.Substring(6, 2));
 
-            } if (partDateTime == PartDateTime.HOUR) {
+            if (partDateTime == PartDateTime.HOUR)
+            {
                 if (ofxDate.Length >= 10)
-                {
                     result = Int32.Parse(ofxDate.Substring(8, 2));
-                }
                 else
-                {
                     result = 0;
-                }
+            }
 
-            } if (partDateTime == PartDateTime.MINUTE) {
+            if (partDateTime == PartDateTime.MINUTE)
+            {
                 if (ofxDate.Length >= 12)
-                {
                     result = Int32.Parse(ofxDate.Substring(10, 2));
-                }
                 else
-                {
                     result = 0;
-                }
 
-            } if (partDateTime == PartDateTime.SECOND) {
+            }
+
+            if (partDateTime == PartDateTime.SECOND)
+            {
                 if (ofxDate.Length >= 14)
-                {
                     result = Int32.Parse(ofxDate.Substring(12, 2));
-                }
                 else
-                {
                     result = 0;
-                }
             }
             return result;
         }
@@ -344,7 +338,8 @@ namespace OFXParser
         /// <param name="ofxDate"></param>
         /// <param name="extract"></param>
         /// <returns></returns>
-        private static DateTime ConvertOfxDateToDateTime(String ofxDate, Extract extract) {
+        private static DateTime ConvertOfxDateToDateTime(String ofxDate, Extract extract)
+        {
             DateTime dateTimeReturned = DateTime.MinValue;
             try
             {
@@ -359,7 +354,7 @@ namespace OFXParser
             }
             catch (Exception ex)
             {
-                extract.ImportingErrors.Add(string.Format("Invalid datetime {0}", ofxDate));
+                extract.ImportingErrors.Add(string.Format("Invalid datetime {0}: " + ex.Message, ofxDate));
             }
             return dateTimeReturned;
         }
@@ -369,7 +364,7 @@ namespace OFXParser
             int bankId;
             if (!int.TryParse(value, out bankId))
             {
-                extract.ImportingErrors.Add(string.Format("Bank id isn't numeric value: {0}", value));
+                extract.ImportingErrors.Add($"Bank id isn't numeric value: {value}");
                 bankId = 0;
             }
             return bankId;
@@ -382,9 +377,9 @@ namespace OFXParser
             {
                 returnValue = Convert.ToDouble(value.Replace('.', ','));
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                extract.ImportingErrors.Add(string.Format("Invalid transaction value: {0}", value));
+                extract.ImportingErrors.Add($"Invalid transaction value: {value}");
             }
             return returnValue;
         }
