@@ -93,11 +93,11 @@ namespace OFXParser
             // Translating to XML file
             ExportToXml(ofxSourceFile, ofxSourceFile + ".xml");
 
-            // Variáveis úteis para o Parse
+            // VariÃ¡veis Ãºteis para o Parse
             String elementoSendoLido = "";
             Transaction transacaoAtual = null;
 
-            // Variávies utilizadas para a leitura do XML
+            // VariÃ¡vies utilizadas para a leitura do XML
             HeaderExtract cabecalho = new HeaderExtract();
             BankAccount conta = new BankAccount();
             Extract extrato = new Extract(cabecalho, conta, "");
@@ -187,7 +187,10 @@ namespace OFXParser
                                     transacaoAtual.Id = meuXml.Value;
                                     break;
                                 case "CHECKNUM":
-                                    transacaoAtual.Checksum = Convert.ToInt64(meuXml.Value);
+                                    long checkNum;
+                                    long.TryParse(meuXml.Value, out checkNum);
+                                    transacaoAtual.Checksum = checkNum;
+                                    transacaoAtual.CheckNum = checkNum;
                                     break;
                                 case "MEMO":
                                     transacaoAtual.Description = string.IsNullOrEmpty(meuXml.Value) ? "" : meuXml.Value.Trim().Replace("  ", " ");
